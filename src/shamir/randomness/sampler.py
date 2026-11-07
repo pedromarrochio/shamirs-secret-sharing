@@ -5,5 +5,5 @@ class CoefficientSampler(ABC):
     """Interface para geração de coeficientes aleatórios."""
 
     @abstractmethod
-    def sample(self):
+    def sample(self, elements):
         pass

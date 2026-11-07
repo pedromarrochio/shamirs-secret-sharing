@@ -5,28 +5,20 @@ class FiniteField(Field):
     """Corpo finito de ordem prima p."""
 
     def __init__(self, p: int):
-        pass
+        self.p = p
+        self.elements : list[int] = list(range(p))
 
     def normalize(self, value):
-        pass
+        return(value % self.p)
 
     def add(self, a, b):
-        pass
-
-    def subtract(self, a, b):
-        pass
+        return(self.normalize(a + b))
 
     def multiply(self, a, b):
-        pass
-
-    def inverse(self, value):
-        pass
-
-    def divide(self, a, b):
-        pass
-
+        return(self.normalize(a * b))
+    
     def zero(self):
-        pass
+        return(self.normalize(0))
 
     def one(self):
-        pass
+        return(self.normalize(1))

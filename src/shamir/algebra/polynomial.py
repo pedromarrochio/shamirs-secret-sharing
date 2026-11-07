@@ -1,21 +1,20 @@
-from .field import Field
-
+from .finite_field import FiniteField
+from ..randomness.finite_sampler import FiniteFieldSampler
 
 class Polynomial:
     """Polinômio com coeficientes pertencentes a um corpo."""
 
-    def __init__(self, coefficients: list, field: Field):
-        pass
+    def __init__(self, field: FiniteField, sampler : FiniteFieldSampler, degree: int):
 
-    @property
-    def degree(self):
-        pass
+        self.field = field
+        self.degree = degree
+        self.coeficients = [sampler.sample(field.elements) for i in range(degree)]
 
     def evaluate(self, x):
-        pass
+        value = int()
 
-    def add(self, other):
-        pass
+        for i in range(self.degree):
+            self.field.add(self.field.multiply(x ** i, self.coeficients[i]))
+            
+        return self.field.normalize(value)
 
-    def multiply(self, other):
-        pass
