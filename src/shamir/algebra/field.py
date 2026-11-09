@@ -13,7 +13,23 @@ class Field(ABC):
         pass
 
     @abstractmethod
+    def negate(self, a):
+        pass
+
+    @abstractmethod
+    def subtract(self, a, b):
+        pass
+
+    @abstractmethod
     def multiply(self, a, b):
+        pass
+
+    @abstractmethod
+    def inverse(self, value):
+        pass
+
+    @abstractmethod
+    def divide(self, a, b):
         pass
 
     @abstractmethod

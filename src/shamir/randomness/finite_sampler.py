@@ -1,6 +1,7 @@
+import secrets
+
 from .sampler import CoefficientSampler
 from ..algebra.finite_field import FiniteField
-import random
 
 
 class FiniteFieldSampler(CoefficientSampler):
@@ -10,4 +11,6 @@ class FiniteFieldSampler(CoefficientSampler):
         self.field = field
 
     def sample(self, elements : list[int]):
-        return random.choice(elements)
+        """Sorteia um elemento uniforme de Z_p = {0, 1, ..., p - 1}."""
+        
+        return secrets.randbelow(self.field.p)

@@ -10,6 +10,9 @@ class RealField(Field):
     def add(self, a, b):
         pass
 
+    def negate(self, a):
+        pass
+
     def subtract(self, a, b):
         pass
 
