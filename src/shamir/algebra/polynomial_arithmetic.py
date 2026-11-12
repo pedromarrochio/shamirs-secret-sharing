@@ -1,0 +1,13 @@
+from typing import Protocol
+
+
+class PolynomialArithmetic(Protocol):
+    """Operações necessárias à representação e avaliação de polinômios."""
+
+    def normalize(self, value): ...
+
+    def zero(self): ...
+
+    def add(self, a, b): ...
+
+    def multiply(self, a, b): ...

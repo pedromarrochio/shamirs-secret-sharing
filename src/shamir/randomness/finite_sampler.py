@@ -10,7 +10,7 @@ class FiniteFieldSampler(CoefficientSampler):
     def __init__(self, field: FiniteField):
         self.field = field
 
-    def sample(self, elements : list[int]):
+    def sample(self):
         """Sorteia um elemento uniforme de Z_p = {0, 1, ..., p - 1}."""
         
         return secrets.randbelow(self.field.p)

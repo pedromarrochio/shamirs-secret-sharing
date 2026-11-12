@@ -1,4 +1,8 @@
 from ..algebra.field import Field
+from ..algebra.finite_field import FiniteField
+from ..algebra.polynomial import Polynomial
+from .reconstruction import interpolate_at_zero
+from .secret_domain import PrimeFieldDomain, SecretDomain
 from ..randomness.sampler import CoefficientSampler
 from .share import Share
 
@@ -12,6 +16,7 @@ class ShamirScheme:
         threshold: int,
         participants: int,
         sampler: CoefficientSampler,
+        domain: SecretDomain | None = None,
     ):
         if not isinstance(threshold, int) or not isinstance(participants, int):
             raise TypeError("O limiar k e o número de participantes n precisam ser inteiros.")
@@ -22,11 +27,12 @@ class ShamirScheme:
                 f"O limiar não pode passar do número de participantes "
                 f"(k = {threshold} > n = {participants})."
             )
-        if participants >= field.p:
-            raise ValueError(
-                f"São necessários n pontos distintos e não nulos em Z_{field.p}, "
-                f"então n precisa ser menor que p (recebido n = {participants})."
-            )
+        if domain is None:
+            if not isinstance(field, FiniteField):
+                raise TypeError("Informe um domínio para corpos diferentes de FiniteField.")
+            domain = PrimeFieldDomain(field)
+        self.domain = domain
+        self.domain.validate_participants(participants)
 
         self.field = field
         self.threshold = threshold
@@ -34,17 +40,27 @@ class ShamirScheme:
         self.sampler = sampler
 
     def validate_secret(self, secret) -> None:
-        """Verifica se o segredo é um elemento de Z_p, isto é, 0 <= s < p."""
-        if not isinstance(secret, int):
-            raise TypeError("O segredo precisa ser um inteiro.")
-        if not 0 <= secret < self.field.p:
-            raise ValueError(
-                f"O segredo precisa estar entre 0 e {self.field.p - 1} "
-                f"(recebido {secret})."
-            )
+        """Valida o segredo conforme as regras do domínio configurado."""
+        self.domain.validate_secret(secret)
 
     def split(self, secret) -> list[Share]:
-        pass
+        """Gera n pontos não nulos de um polinômio com termo constante secreto."""
+        self.validate_secret(secret)
+        polynomial = Polynomial.random(
+            self.field, self.sampler, self.threshold - 1, secret
+        )
+        return [
+            self.domain.create_share(x, polynomial.evaluate(x))
+            for x in range(1, self.participants + 1)
+        ]
 
     def reconstruct(self, shares: list[Share]):
-        pass
+        """Reconstrói o segredo com pelo menos k fragmentos distintos."""
+        if len(shares) < self.threshold:
+            raise ValueError(
+                f"São necessários pelo menos {self.threshold} fragmentos "
+                f"(recebidos {len(shares)})."
+            )
+        for share in shares:
+            self.domain.validate_share(share)
+        return interpolate_at_zero(shares, self.field)

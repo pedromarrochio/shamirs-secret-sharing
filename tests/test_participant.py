@@ -2,6 +2,7 @@ import pytest
 
 from shamir.application.participant import Participant
 from shamir.cryptography.share import Share
+from shamir.serialization.share_text import ShareTextSerializer
 
 """Testes para fragmentos e participantes."""
 
@@ -25,13 +26,13 @@ def test_share_is_immutable():
 
 def test_share_text_round_trip():
     s = Share(x=4, y=9, modulus=17)
-    assert s.to_text() == "17:4:9"
-    assert Share.from_text("17:4:9") == s
-    assert Share.from_text("  17:4:9\n") == s   # espaços ao copiar e colar
+    assert ShareTextSerializer.serialize(s) == "17:4:9"
+    assert ShareTextSerializer.deserialize("17:4:9") == s
+    assert ShareTextSerializer.deserialize("  17:4:9\n") == s   # espaços ao copiar e colar
 
     for text in ("17:4", "17:4:9:1", "17:a:9", "17:0:9"):
         with pytest.raises(ValueError):
-            Share.from_text(text)
+            ShareTextSerializer.deserialize(text)
 
 
 def test_participant_lifecycle():

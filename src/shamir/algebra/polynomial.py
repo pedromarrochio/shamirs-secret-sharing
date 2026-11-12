@@ -1,4 +1,4 @@
-from .field import Field
+from .polynomial_arithmetic import PolynomialArithmetic
 from ..randomness.sampler import CoefficientSampler
 
 class Polynomial:
@@ -8,7 +8,7 @@ class Polynomial:
     [a0, a1, ..., an] representa a0 + a1*x + ... + an*x^n.
     """
 
-    def __init__(self, coefficients: list, field: Field):
+    def __init__(self, coefficients: list, field: PolynomialArithmetic):
         if len(coefficients) == 0:
             raise ValueError("Um polinômio precisa de pelo menos um coeficiente.")
 
@@ -16,7 +16,7 @@ class Polynomial:
         self.coefficients = [field.normalize(c) for c in coefficients]
 
     @classmethod
-    def random(cls, field: Field, sampler: CoefficientSampler,
+    def random(cls, field: PolynomialArithmetic, sampler: CoefficientSampler,
                degree: int, constant_term):
         """Cria um polinômio de grau `degree` com termo constante fixo
         e os demais coeficientes sorteados pelo `sampler`."""

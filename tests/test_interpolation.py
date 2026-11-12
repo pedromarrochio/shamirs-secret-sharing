@@ -2,7 +2,10 @@ import pytest
 
 from shamir.algebra.finite_field import FiniteField
 from shamir.algebra.polynomial import Polynomial
-from shamir.cryptography.reconstruction import lagrange_coefficients
+from shamir.cryptography.reconstruction import (
+    lagrange_coefficients, lagrange_interpolation, interpolate_at_zero,
+)
+from shamir.cryptography.share import Share
 
 """Testes para interpolação de Lagrange."""
 
@@ -44,8 +47,17 @@ def test_lagrange_coefficients_invalid_points():
         lagrange_coefficients([1, 18], 0, F17)   # 18 ≡ 1 em Z_17
 
 def test_lagrange_interpolation():
-    pass
+    polynomial = Polynomial([8, 5, 2], F17)
+    shares = [Share(x, polynomial.evaluate(x), 17) for x in (1, 2, 4)]
+    for x in range(17):
+        assert lagrange_interpolation(shares, x, F17) == polynomial.evaluate(x)
+    for invalid in ([], [shares[0], shares[0]], [shares[0], Share(2, 9, 19)]):
+        with pytest.raises(ValueError):
+            lagrange_interpolation(invalid, 0, F17)
+    with pytest.raises(ValueError, match="módulo"):
+        lagrange_interpolation([Share(1, 5, 19)], 0, F17)
 
 
 def test_interpolation_at_zero():
-    pass
+    assert interpolate_at_zero([Share(1, 15, 17), Share(2, 9, 17), Share(4, 9, 17)], F17) == 8
+    assert interpolate_at_zero([Share(1, 8, 17)], F17) == 8
