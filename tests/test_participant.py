@@ -33,7 +33,12 @@ def test_share_text_round_trip():
     assert ShareTextSerializer.deserialize("17:4:9") == s
     assert ShareTextSerializer.deserialize("  17:4:9\n") == s   # espaços ao copiar e colar
 
-    for text in ("17:4", "17:4:9:1", "17:a:9", "17:0:9"):
+    for invalid in (None, 17, b"17:4:9"):
+        with pytest.raises(TypeError):
+            ShareTextSerializer.deserialize(invalid)
+    with pytest.raises(TypeError):
+        ShareTextSerializer.serialize(None)
+    for text in ("", "17:4", "17:4:9:1", "17:a:9", "17:0:9", "17:4:17", "1:1:0"):
         with pytest.raises(ValueError):
             ShareTextSerializer.deserialize(text)
 
@@ -52,6 +57,7 @@ def test_participant_lifecycle():
     assert alice.has_share
     assert alice.present_share() == s
     assert str(alice) == "Alice: (1, 15) em Z_17"
+    assert alice.present_share() is s  # apresentar não consome o fragmento
 
     with pytest.raises(ValueError):
         alice.receive_share(Share(x=1, y=3, modulus=17))
@@ -59,3 +65,9 @@ def test_participant_lifecycle():
 
 def test_participant_default_name():
     assert Participant(3).name == "Participante 3"
+    fragment = Share(1, 8, 17)
+    participant = Participant(1, share=fragment)
+    assert participant.has_share
+    assert participant.present_share() is fragment
+    with pytest.raises(TypeError):
+        Participant(1, share="17:1:8")

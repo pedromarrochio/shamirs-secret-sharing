@@ -22,6 +22,11 @@ def test_valid_parameters():
 def test_invalid_parameters(k, n):
     with pytest.raises(ValueError):
         ShamirScheme(F17, threshold=k, participants=n, sampler=SAMPLER)
+    for invalid in (True, 2.5, "3", None):
+        with pytest.raises(TypeError):
+            ShamirScheme(F17, invalid, 5, SAMPLER)
+        with pytest.raises(TypeError):
+            ShamirScheme(F17, 3, invalid, SAMPLER)
 
 
 def test_invalid_secret():
@@ -31,8 +36,9 @@ def test_invalid_secret():
     for s in (-1, 17, 100):
         with pytest.raises(ValueError):
             scheme.validate_secret(s)
-    with pytest.raises(TypeError):
-        scheme.validate_secret("8")
+    for invalid in ("8", 8.0, True, None):
+        with pytest.raises(TypeError):
+            scheme.validate_secret(invalid)
 
 
 def test_sampler_range():

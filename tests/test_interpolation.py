@@ -54,6 +54,8 @@ def test_lagrange_interpolation():
     for invalid in ([], [shares[0], shares[0]], [shares[0], Share(2, 9, 19)]):
         with pytest.raises(ValueError):
             lagrange_interpolation(invalid, 0, F17)
+    with pytest.raises(TypeError):
+        lagrange_interpolation([None], 0, F17)
     with pytest.raises(ValueError, match="módulo"):
         lagrange_interpolation([Share(1, 5, 19)], 0, F17)
 
@@ -61,3 +63,6 @@ def test_lagrange_interpolation():
 def test_interpolation_at_zero():
     assert interpolate_at_zero([Share(1, 15, 17), Share(2, 9, 17), Share(4, 9, 17)], F17) == 8
     assert interpolate_at_zero([Share(1, 8, 17)], F17) == 8
+    assert interpolate_at_zero([Share(1, 0, 17)], F17) == 0
+    with pytest.raises(ValueError):
+        interpolate_at_zero([], F17)

@@ -5,6 +5,8 @@ from unittest.mock import Mock
 import pytest
 
 from shamir.algebra.finite_field import FiniteField
+from shamir.application.participant import Participant
+from shamir.serialization.share_text import ShareTextSerializer
 from shamir.application.secret_manager import SecretManager
 from shamir.cryptography.shamir import ShamirScheme
 from shamir.cryptography.share import Share
@@ -73,8 +75,24 @@ def test_threshold_one():
     for share in shares:
         assert share.y == 8
         assert scheme.reconstruct([share]) == 8
+    # Menor corpo suportado e caso em que todos os participantes são necessários.
+    for prime, threshold, count in ((2, 1, 1), (5, 4, 4)):
+        boundary_field = FiniteField(prime)
+        boundary = ShamirScheme(boundary_field, threshold, count, FiniteFieldSampler(boundary_field))
+        for secret in range(prime):
+            fragments = boundary.split(secret)
+            assert len(fragments) == count
+            assert boundary.reconstruct(fragments) == secret
+            with pytest.raises(ValueError):
+                boundary.reconstruct(fragments[:-1])
 
 
 def test_secret_manager_round_trip(scheme):
     manager = SecretManager(scheme)
-    assert manager.recover_secret(manager.distribute_secret(8)[:3]) == 8
+    shares = manager.distribute_secret(8)
+    participants = [Participant(i) for i in range(1, 6)]
+    for participant, share in zip(participants, shares):
+        participant.receive_share(ShareTextSerializer.deserialize(ShareTextSerializer.serialize(share)))
+    assert manager.recover_secret([participants[i].present_share() for i in (0, 2, 4)]) == 8
+    with pytest.raises(ValueError):
+        manager.recover_secret([participants[0].present_share()])
