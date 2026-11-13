@@ -10,6 +10,9 @@ def test_share_creation():
     s = Share(x=1, y=15, modulus=17)
     assert (s.x, s.y, s.modulus) == (1, 15, 17)
     assert str(s) == "(1, 15) em Z_17"
+    for x, y, modulus in ((1.5, 2, 17), (1, 2.5, 17), (1, 2, 17.0), (True, 2, 17)):
+        with pytest.raises(TypeError):
+            Share(x, y, modulus)
 
 
 @pytest.mark.parametrize("x, y", [(0, 5), (17, 5), (-1, 5), (1, 17), (1, -1)])
@@ -37,6 +40,8 @@ def test_share_text_round_trip():
 
 def test_participant_lifecycle():
     alice = Participant(1, "Alice")
+    with pytest.raises(TypeError):
+        alice.receive_share(None)
     assert not alice.has_share
     assert str(alice) == "Alice: sem fragmento"
     with pytest.raises(ValueError):

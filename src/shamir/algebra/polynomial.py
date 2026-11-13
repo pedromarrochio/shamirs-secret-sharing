@@ -18,9 +18,11 @@ class Polynomial:
     @classmethod
     def random(cls, field: PolynomialArithmetic, sampler: CoefficientSampler,
                degree: int, constant_term):
-        """Cria um polinômio de grau `degree` com termo constante fixo
+        """Cria um polinômio de grau no máximo `degree` com termo constante fixo
         e os demais coeficientes sorteados pelo `sampler`."""
 
+        if not isinstance(degree, int) or isinstance(degree, bool):
+            raise TypeError("O grau precisa ser um inteiro.")
         if degree < 0:
             raise ValueError("O grau precisa ser não negativo.")
 

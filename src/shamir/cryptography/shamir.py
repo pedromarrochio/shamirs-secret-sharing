@@ -18,7 +18,8 @@ class ShamirScheme:
         sampler: CoefficientSampler,
         domain: SecretDomain | None = None,
     ):
-        if not isinstance(threshold, int) or not isinstance(participants, int):
+        if any(not isinstance(value, int) or isinstance(value, bool)
+               for value in (threshold, participants)):
             raise TypeError("O limiar k e o número de participantes n precisam ser inteiros.")
         if threshold < 1:
             raise ValueError(f"O limiar k precisa ser pelo menos 1 (recebido k = {threshold}).")

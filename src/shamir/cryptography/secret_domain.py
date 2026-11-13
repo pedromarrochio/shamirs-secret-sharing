@@ -34,7 +34,7 @@ class PrimeFieldDomain:
             raise TypeError("As coordenadas do fragmento precisam ser inteiras.")
 
     def validate_secret(self, secret) -> None:
-        if not isinstance(secret, int):
+        if not isinstance(secret, int) or isinstance(secret, bool):
             raise TypeError("O segredo precisa ser um inteiro.")
         if not 0 <= secret < self.field.p:
             raise ValueError(

@@ -17,6 +17,8 @@ def extended_gcd(a: int, b: int) -> tuple[int, int, int]:
         old_u, u = u, old_u - q * u
         old_v, v = v, old_v - q * v
 
+    if old_r < 0:
+        return -old_r, -old_u, -old_v
     return old_r, old_u, old_v
 
 _SMALL_PRIMES = (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37)
@@ -28,6 +30,8 @@ def is_prime(n: int) -> bool:
     Determinístico para n < 3,3 * 10^24; acima disso, probabilístico
     (com chance de erro desprezível).
     """
+    if not isinstance(n, int) or isinstance(n, bool):
+        raise TypeError("O número precisa ser um inteiro.")
     if n < 2:
         return False
     for q in _SMALL_PRIMES:
@@ -61,26 +65,28 @@ class FiniteField(Field):
     """Corpo finito de ordem prima p."""
 
     def __init__(self, p: int):
-        if not isinstance(p, int):
+        if not isinstance(p, int) or isinstance(p, bool):
             raise TypeError("A ordem do corpo precisa ser um inteiro.")
         if not is_prime(p):
             raise ValueError(f"{p} não é primo: Z_{p} não é um corpo.")
         self.p = p
         
     def normalize(self, value):
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise TypeError("Os elementos do corpo precisam ser inteiros.")
         return(value % self.p)
 
     def add(self, a, b):
-        return(self.normalize(a + b))
+        return(self.normalize(self.normalize(a) + self.normalize(b)))
     
     def negate(self, a):
-        return self.normalize(-a)
+        return self.normalize(-self.normalize(a))
 
     def subtract(self, a, b):
         return self.add(a, self.negate(b))
 
     def multiply(self, a, b):
-        return(self.normalize(a * b))
+        return(self.normalize(self.normalize(a) * self.normalize(b)))
 
     def inverse(self, value):
         a = self.normalize(value)

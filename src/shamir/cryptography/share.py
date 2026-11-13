@@ -13,6 +13,11 @@ class Share:
         return f"({self.x}, {self.y}) em Z_{self.modulus}"
 
     def __post_init__(self):
+        if any(not isinstance(value, int) or isinstance(value, bool)
+               for value in (self.x, self.y, self.modulus)):
+            raise TypeError("As coordenadas e o módulo precisam ser inteiros.")
+        if self.modulus < 2:
+            raise ValueError("O módulo precisa ser pelo menos 2.")
         if not 0 < self.x < self.modulus:
             raise ValueError(
                 f"A abscissa precisa estar entre 1 e {self.modulus - 1} "

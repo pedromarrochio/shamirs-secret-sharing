@@ -41,6 +41,10 @@ def reconstructible_fraction(m: int, k: int) -> tuple[int, int]:
     Devolve (quantidade que funciona, total de conjuntos).
     """
     ring = IntegerModRing(m)
+    if not isinstance(k, int) or isinstance(k, bool):
+        raise TypeError("O número de pontos precisa ser inteiro.")
+    if not 1 <= k < m:
+        raise ValueError("O número de pontos precisa estar entre 1 e m - 1.")
     ok = 0
     for xs in combinations(range(1, m), k):
         try:
@@ -60,6 +64,8 @@ def ambiguity_example(m: int = 12) -> dict:
     Para x ímpar, x + 1 é par, então 6(x + 1) é múltiplo de 12, ou seja, 0 em Z_12.
     """
 
+    if not isinstance(m, int) or isinstance(m, bool) or m != 12:
+        raise ValueError("Este exemplo de ambiguidade foi construído para módulo 12.")
     ring = IntegerModRing(m)
     f = Polynomial([8, 5, 2], ring)
     g = Polynomial([8 + 6, 5 + 6, 2], ring)
@@ -82,7 +88,7 @@ def main():
         r = reconstruction_attempt(ring, coefficients, points)
         print(f"\n{name}: fragmentos {r['shares']}, segredo verdadeiro {r['secret']}")
         if r["success"]:
-            print(f"  L's = {r['Ls']} -> segredo recuperado = {r['recovered']}")
+            print(f"  L's = {r['lambdas']} -> segredo recuperado = {r['recovered']}")
         else:
             print(f"  FALHOU: o denominador {r['element']} não tem inverso "
                   f"(mdc({r['element']}, {ring.m}) = {r['gcd']})")

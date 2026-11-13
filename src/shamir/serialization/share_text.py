@@ -6,10 +6,14 @@ class ShareTextSerializer:
 
     @staticmethod
     def serialize(share: Share) -> str:
+        if not isinstance(share, Share):
+            raise TypeError("O fragmento precisa ser um Share.")
         return f"{share.modulus}:{share.x}:{share.y}"
 
     @staticmethod
     def deserialize(text: str) -> Share:
+        if not isinstance(text, str):
+            raise TypeError("O fragmento serializado precisa ser um texto.")
         parts = text.strip().split(":")
         if len(parts) != 3:
             raise ValueError(f"Formato inválido: esperado 'p:x:y', recebido '{text}'.")

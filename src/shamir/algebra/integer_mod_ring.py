@@ -23,24 +23,26 @@ class IntegerModRing:
     """
 
     def __init__(self, m: int):
-        if not isinstance(m, int) or m < 2:
+        if not isinstance(m, int) or isinstance(m, bool) or m < 2:
             raise ValueError("O módulo precisa ser um inteiro maior ou igual a 2.")
         self.m = m
 
     def normalize(self, value):
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise TypeError("Os elementos do anel precisam ser inteiros.")
         return value % self.m
 
     def add(self, a, b):
-        return self.normalize(a + b)
+        return self.normalize(self.normalize(a) + self.normalize(b))
 
     def negate(self, a):
-        return self.normalize(-a)
+        return self.normalize(-self.normalize(a))
 
     def subtract(self, a, b):
         return self.add(a, self.negate(b))
 
     def multiply(self, a, b):
-        return self.normalize(a * b)
+        return self.normalize(self.normalize(a) * self.normalize(b))
 
     def is_unit(self, value) -> bool:
         """Diz se o elemento é invertível, isto é, se mdc(value, m) = 1."""

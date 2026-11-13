@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 
 from shamir.algebra.finite_field import FiniteField
@@ -36,4 +38,7 @@ def test_invalid_secret():
 def test_sampler_range():
     valores = {SAMPLER.sample() for _ in range(2000)}
     assert valores <= set(range(17))
-    assert len(valores) == 17   # em 2000 sorteios, todos os elementos aparecem
+    # Cobertura do intervalo sem depender da sorte de uma execução.
+    with patch("shamir.randomness.finite_sampler.secrets.randbelow", side_effect=range(17)) as draw:
+        assert [SAMPLER.sample() for _ in range(17)] == list(range(17))
+        assert all(call.args == (17,) for call in draw.call_args_list)
