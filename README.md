@@ -1,6 +1,21 @@
 # shamirs-secret-sharing
 An implementation of Shamir's Secret Sharing with a focus on its abstract algebra properties.
 
+## Exemplos
+
+Execute a partir da raiz do repositório:
+
+```bash
+PYTHONPATH=src python3 examples/basic_example.py
+PYTHONPATH=src python3 examples/distributed_recovery.py
+```
+
+O primeiro mostra os fragmentos, os coeficientes de Lagrange e a recuperação
+do segredo, além da recusa por quantidade insuficiente de fragmentos.
+O segundo simula a entrega em texto a cinco participantes e a recuperação
+por três deles, incluindo a recusa de fragmentos duplicados. Os coeficientes
+são sorteados em cada execução. A distribuição é local, sem comunicação de rede.
+
 ## Interfaces e serialização
 
 `Polynomial` requer apenas as operações de `PolynomialArithmetic`: `normalize`,

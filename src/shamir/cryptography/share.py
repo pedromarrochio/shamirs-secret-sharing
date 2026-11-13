@@ -9,6 +9,9 @@ class Share:
     y: int
     modulus: int
 
+    def __str__(self) -> str:
+        return f"({self.x}, {self.y}) em Z_{self.modulus}"
+
     def __post_init__(self):
         if not 0 < self.x < self.modulus:
             raise ValueError(
