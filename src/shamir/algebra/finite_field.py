@@ -21,14 +21,18 @@ def extended_gcd(a: int, b: int) -> tuple[int, int, int]:
         return -old_r, -old_u, -old_v
     return old_r, old_u, old_v
 
-_SMALL_PRIMES = (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37)
+_SMALL_PRIMES = (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41)
+# Sorenson e Webster, Theorem 1.1: este limite exige as 13 bases acima.
+_DETERMINISTIC_LIMIT = 3_317_044_064_679_887_385_961_981
+_RANDOM_ROUNDS = 32
 
 
 def is_prime(n: int) -> bool:
     """Teste de primalidade de Miller-Rabin.
 
-    Determinístico para n < 3,3 * 10^24; acima disso, probabilístico
-    (com chance de erro desprezível).
+    Determinístico para n < 3_317_044_064_679_887_385_961_981.
+    Acima desse limite, 32 bases aleatórias adicionais limitam a probabilidade
+    de aceitar um composto a 4^-32, supondo sorteios uniformes independentes.
     """
     if not isinstance(n, int) or isinstance(n, bool):
         raise TypeError("O número precisa ser um inteiro.")
@@ -45,8 +49,8 @@ def is_prime(n: int) -> bool:
         s += 1
 
     bases = list(_SMALL_PRIMES)
-    if n >= 3_317_044_064_679_887_385_961_981:
-        bases += [secrets.randbelow(n - 3) + 2 for _ in range(20)]
+    if n >= _DETERMINISTIC_LIMIT:
+        bases += [secrets.randbelow(n - 3) + 2 for _ in range(_RANDOM_ROUNDS)]
 
     for a in bases:
         x = pow(a, d, n)

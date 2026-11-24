@@ -7,7 +7,6 @@ import pytest
 from shamir.algebra.finite_field import FiniteField
 from shamir.application.participant import Participant
 from shamir.serialization.share_text import ShareTextSerializer
-from shamir.application.secret_manager import SecretManager
 from shamir.cryptography.shamir import ShamirScheme
 from shamir.cryptography.share import Share
 from shamir.randomness.finite_sampler import FiniteFieldSampler
@@ -87,15 +86,14 @@ def test_threshold_one():
                 boundary.reconstruct(fragments[:-1])
 
 
-def test_secret_manager_round_trip(scheme):
-    manager = SecretManager(scheme)
-    shares = manager.distribute_secret(8)
+def test_participants_and_serialization_round_trip(scheme):
+    shares = scheme.split(8)
     participants = [Participant(i) for i in range(1, 6)]
     for participant, share in zip(participants, shares):
         participant.receive_share(ShareTextSerializer.deserialize(ShareTextSerializer.serialize(share)))
-    assert manager.recover_secret([participants[i].present_share() for i in (0, 2, 4)]) == 8
+    assert scheme.reconstruct([participants[i].present_share() for i in (0, 2, 4)]) == 8
     with pytest.raises(ValueError):
-        manager.recover_secret([participants[0].present_share()])
+        scheme.reconstruct([participants[0].present_share()])
 
 
 def test_split_with_polynomial(scheme):

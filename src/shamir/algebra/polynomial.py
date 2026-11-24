@@ -2,7 +2,7 @@ from .polynomial_arithmetic import PolynomialArithmetic
 from ..randomness.sampler import CoefficientSampler
 
 class Polynomial:
-    """Polinômio com coeficientes pertencentes a um corpo.
+    """Polinômio com coeficientes pertencentes a um corpo ou anel.
     
     Os coeficientes são guardados do termo de menor grau para o de maior:
     [a0, a1, ..., an] representa a0 + a1*x + ... + an*x^n.
@@ -55,7 +55,7 @@ class Polynomial:
         return " + ".join(terms) if terms else "0"
 
     def evaluate(self, x):
-        """Calcula f(x) no corpo pelo método de Horner."""
+        """Calcula f(x) pelo método de Horner, usando a aritmética fornecida."""
         x = self.field.normalize(x)
         result = self.field.zero()
 

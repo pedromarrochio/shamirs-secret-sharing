@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch
 
 from shamir.algebra.finite_field import FiniteField, is_prime, extended_gcd
 
@@ -30,6 +31,23 @@ def test_is_prime():
     for invalid in (True, 17.0, "17", None):
         with pytest.raises(TypeError):
             is_prime(invalid)
+
+
+def test_twelve_base_pseudoprime_is_rejected():
+    composite = 318665857834031151167461
+    assert composite == 399165290221 * 798330580441
+    assert not is_prime(composite)
+    with pytest.raises(ValueError, match="não é primo"):
+        FiniteField(composite)
+
+
+def test_thirteen_base_boundary_uses_additional_random_bases():
+    # O próprio limite é pseudoprimo para as 13 bases fixas; 43 é testemunha.
+    boundary = 3317044064679887385961981
+    with patch("shamir.algebra.finite_field.secrets.randbelow", return_value=41) as draw:
+        assert not is_prime(boundary)
+    assert draw.call_count == 32
+    assert all(call.args == (boundary - 3,) for call in draw.call_args_list)
 
 def test_finite_field_operations():
     F = FiniteField(17)

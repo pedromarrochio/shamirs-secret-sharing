@@ -4,6 +4,7 @@ import pytest
 
 from shamir.algebra.finite_field import FiniteField
 from shamir.algebra.polynomial import Polynomial
+from shamir.algebra.polynomial_arithmetic import PolynomialArithmetic
 from shamir.randomness.finite_sampler import FiniteFieldSampler
 
 
@@ -68,3 +69,17 @@ def test_polynomial_text():
     assert str(Polynomial([0, 1, 0, 3], F17)) == "x + 3x³"
     assert str(Polynomial([17, 34], F17)) == "0"
     assert str(Polynomial([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], F17)) == "1 + x¹⁰"
+
+
+def test_polynomial_works_with_only_the_declared_protocol():
+    class MinimalArithmetic:
+        def normalize(self, value): return value % 17
+        def zero(self): return 0
+        def one(self): return 1
+        def add(self, a, b): return (a + b) % 17
+        def multiply(self, a, b): return (a * b) % 17
+
+    arithmetic: PolynomialArithmetic = MinimalArithmetic()
+    polynomial = Polynomial([8, 1, 2], arithmetic)
+    assert polynomial.evaluate(2) == 1
+    assert str(polynomial) == "8 + x + 2x²"

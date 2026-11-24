@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Share:
-    """Compartilhamento individual de um segredo: o ponto (x, y) de Z_p x Z_p.."""
+    """Fragmento modular (x, y); a primalidade é validada pelo esquema padrão."""
 
     x: int
     y: int

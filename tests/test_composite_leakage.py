@@ -51,3 +51,9 @@ def test_invalid_parameters(args):
     m, k, x = args
     with pytest.raises(ValueError):
         share_distribution(m, x, 0, k)
+
+
+def test_independence_check_limits_total_enumeration_across_secrets():
+    # Cada segredo isolado caberia no limite, mas a comparação completa não.
+    with pytest.raises(ValueError, match="Enumeração muito grande"):
+        is_uniform_and_independent(257, 1, k=3)

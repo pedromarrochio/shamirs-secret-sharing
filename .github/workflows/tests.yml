@@ -1,0 +1,26 @@
+name: Testes
+
+on: [push, pull_request]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.10', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -e '.[dev]'
+      - run: python -m pytest -q
+      - name: Executar exemplos e experimentos
+        run: |
+          python -m examples.basic_example
+          python -m examples.distributed_recovery
+          python -m experiments.missing_inverse
+          python -m experiments.composite_leakage
+          python -m experiments.ring_comparison
+          python -m experiments.threshold_analysis
+          python -m experiments.performance

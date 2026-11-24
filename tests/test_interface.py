@@ -2,8 +2,7 @@
 
 from unittest.mock import Mock
 
-from shamir.algebra.finite_field import FiniteField
-from shamir.interface.cli import ShamirCLI, interpolating_polynomial
+from shamir.interface.cli import ShamirCLI
 
 
 def run_cli(inputs, sampler_values=None):
@@ -165,7 +164,7 @@ def test_guided_example():
 
 
 def test_experiments_menu():
-    inputs = ["6", "1", "", "2", "", "3", "", "4", "", "7", "0", "0"]
+    inputs = ["6", "1", "", "2", "", "3", "", "4", "", "99", "0", "0"]
     text, _ = run_cli(inputs)
     assert "FALHOU: o denominador 3 não tem inverso" in text
     assert "100.0%" in text
@@ -174,7 +173,58 @@ def test_experiments_menu():
     assert "Opção inválida." in text
 
 
-def test_interpolating_polynomial():
-    field = FiniteField(17)
-    f = interpolating_polynomial([(0, 8), (1, 15), (2, 9)], field)
-    assert f.coefficients == [8, 5, 2]
+def test_small_field_has_valid_defaults():
+    text, cli = run_cli(["1", "2", "", "", "", "0"])
+    assert "Z_2, limiar 1 de 1" in text
+    assert cli.scheme.participants == cli.scheme.threshold == 1
+
+
+def test_configuration_can_change_modulus_and_cancel():
+    inputs = CONFIG_17 + ["2", "8", "n", "1", "s", "13", "voltar",
+                          "19", "3", "5", "cancelar", "4", "0"]
+    text, cli = run_cli(inputs, sampler_values=[5, 2])
+    assert "Configuração cancelada" in text
+    assert cli.field.p == 17
+    assert [p.share.y for p in cli.participants] == [15, 9, 7, 9, 15]
+
+
+def test_configuration_back_commits_only_the_new_complete_scheme():
+    text, cli = run_cli(["1", "17", "3", "voltar", "13", "2", "3", "", "0"])
+    assert cli.field.p == 13
+    assert cli.scheme.threshold == 2
+    assert len(cli.participants) == 3
+
+
+def test_new_demonstrations_preserve_current_distribution():
+    inputs = CONFIG_17 + ["2", "8", "n", "6", "5", "", "6", "", "7", "",
+                          "8", "", "9", "", "10", "", "0", "3", "1", "1 2 4", "0"]
+    text, cli = run_cli(inputs, sampler_values=[5, 2])
+    assert "Polinômios compatíveis: 2; segredos possíveis: [8]" in text
+    assert "distribuições iguais para todos os 25 segredos? sim" in text
+    assert "A recusa da API sozinha não prova sigilo" in text
+    assert "resultado 14" in text and "resultado 15" in text
+    assert "Segredo recuperado: 8" in text
+    assert cli.field.p == 17
+
+
+def test_explorer_distinguishes_unique_secret_from_unique_polynomial():
+    text, cli = run_cli(["6", "11", "12", "3", "12:1:3", "12:2:2", "12:3:5",
+                         "", "", "0", "0"])
+    assert "Segredos possíveis: [8]" in text
+    assert "Polinômios compatíveis: 2" in text
+    assert cli.scheme is None
+
+
+def test_explorer_refuses_wrong_modulus_duplicates_and_large_parameters():
+    for answers, expected in (
+        (["12", "3", "13:1:3", ""], "módulo de cada fragmento"),
+        (["12", "3", "12:1:3", "12:1:3", ""], "abscissas precisam ser distintas"),
+        (["1000", "3"], "Use m entre 2 e 25"),
+    ):
+        text, _ = run_cli(["6", "11", *answers, "", "0", "0"])
+        assert expected in text
+
+
+def test_explorer_reports_incompatible_observations():
+    text, _ = run_cli(["6", "11", "5", "1", "5:1:1", "5:2:2", "", "", "0", "0"])
+    assert "Nenhum polinômio de grau < k" in text

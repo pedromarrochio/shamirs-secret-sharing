@@ -3,6 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from shamir.algebra.finite_field import FiniteField
+from shamir.algebra.integer_mod_ring import IntegerModRing
 from shamir.cryptography.shamir import ShamirScheme
 from shamir.randomness.finite_sampler import FiniteFieldSampler
 
@@ -16,6 +17,12 @@ def test_valid_parameters():
     scheme = ShamirScheme(F17, threshold=3, participants=5, sampler=SAMPLER)
     assert (scheme.threshold, scheme.participants) == (3, 5)
     ShamirScheme(F17, threshold=16, participants=16, sampler=SAMPLER)  # caso limite n = p - 1
+
+
+def test_standard_scheme_explicitly_requires_a_prime_field():
+    for arithmetic in (IntegerModRing(12), IntegerModRing(17), None):
+        with pytest.raises(TypeError, match="FiniteField"):
+            ShamirScheme(arithmetic, 3, 5, SAMPLER)
 
 
 @pytest.mark.parametrize("k, n", [(0, 5), (6, 5), (3, 17), (3, 20)])

@@ -4,7 +4,9 @@ from shamir.algebra.finite_field import FiniteField
 from shamir.algebra.polynomial import Polynomial
 from shamir.cryptography.reconstruction import (
     lagrange_coefficients, lagrange_interpolation, interpolate_at_zero,
+    interpolating_polynomial,
 )
+from shamir.algebra.integer_mod_ring import IntegerModRing, NonInvertibleElementError
 from shamir.cryptography.share import Share
 
 """Testes para interpolação de Lagrange."""
@@ -66,3 +68,20 @@ def test_interpolation_at_zero():
     assert interpolate_at_zero([Share(1, 0, 17)], F17) == 0
     with pytest.raises(ValueError):
         interpolate_at_zero([], F17)
+
+
+def test_complete_interpolation_including_zero_and_normalized_coordinates():
+    polynomial = interpolating_polynomial([(0, 8), (18, 15), (2, 9)], F17)
+    assert polynomial.coefficients == [8, 5, 2]
+    assert all(polynomial.evaluate(x) == (8 + 5*x + 2*x*x) % 17 for x in range(17))
+
+
+def test_complete_interpolation_validates_points_and_ring_denominators():
+    with pytest.raises(ValueError, match="pelo menos"):
+        interpolating_polynomial([], F17)
+    with pytest.raises(ValueError, match="distintas"):
+        interpolating_polynomial([(1, 15), (18, 15)], F17)
+    with pytest.raises(NonInvertibleElementError):
+        interpolating_polynomial([(1, 3), (2, 2), (3, 5)], IntegerModRing(12))
+    with pytest.raises(ValueError, match="módulo"):
+        interpolate_at_zero([Share(1, 3, 13)], IntegerModRing(12))

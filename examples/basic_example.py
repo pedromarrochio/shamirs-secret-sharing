@@ -39,6 +39,8 @@ def main():
         print(f"  Recusada: {error}")
     else:
         raise RuntimeError("A reconstrução deveria exigir três fragmentos.")
+    print("A recusa aplica o limiar da API; não é, sozinha, uma demonstração de sigilo.")
+    print("Veja o exemplo guiado e experiments.threshold_analysis para a análise dos candidatos e distribuições.")
 
 
 if __name__ == "__main__":

@@ -2,7 +2,6 @@
 
 from shamir.algebra.finite_field import FiniteField
 from shamir.application.participant import Participant
-from shamir.application.secret_manager import SecretManager
 from shamir.cryptography.shamir import ShamirScheme
 from shamir.randomness.finite_sampler import FiniteFieldSampler
 from shamir.serialization.share_text import ShareTextSerializer
@@ -12,7 +11,6 @@ def main():
     field = FiniteField(257)
     scheme = ShamirScheme(field, threshold=3, participants=5,
                           sampler=FiniteFieldSampler(field))
-    manager = SecretManager(scheme)
     secret = 123
     participants = [
         Participant(index, name)
@@ -21,7 +19,7 @@ def main():
 
     print("Distribuição simulada: cada participante recebe um fragmento em texto.")
     print(f"Segredo de demonstração: {secret}; limiar: 3 de 5, em Z_257.")
-    for participant, share in zip(participants, manager.distribute_secret(secret)):
+    for participant, share in zip(participants, scheme.split(secret)):
         text = ShareTextSerializer.serialize(share)
         participant.receive_share(ShareTextSerializer.deserialize(text))
         print(f"  {participant.name} recebeu {text}")
@@ -34,14 +32,14 @@ def main():
         presented.append(ShareTextSerializer.deserialize(text))
         print(f"  {participant.name} apresentou {text}")
 
-    recovered = manager.recover_secret(presented)
+    recovered = scheme.reconstruct(presented)
     print(f"Segredo recuperado: {recovered}")
     if recovered != secret:
         raise RuntimeError("O segredo recuperado difere do original.")
 
     print("\nTentativa de apresentar duas vezes o fragmento de Alice:")
     try:
-        manager.recover_secret([presented[0], presented[0], presented[1]])
+        scheme.reconstruct([presented[0], presented[0], presented[1]])
     except ValueError as error:
         print(f"  Recusada: {error}")
     else:

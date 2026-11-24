@@ -8,10 +8,9 @@ Execute pela raiz do repositório com `python3 main.py`.
 """
 
 from ..algebra.finite_field import FiniteField
-from ..algebra.polynomial import Polynomial
 from ..application.participant import Participant
-from ..application.secret_manager import SecretManager
-from ..cryptography.reconstruction import lagrange_coefficients
+from ..cryptography.analysis import compatible_secret_counts
+from ..cryptography.reconstruction import interpolating_polynomial, lagrange_coefficients
 from ..cryptography.shamir import ShamirScheme
 from ..randomness.finite_sampler import FiniteFieldSampler
 from ..randomness.sampler import CoefficientSampler
@@ -28,30 +27,8 @@ class FixedSampler(CoefficientSampler):
         return next(self._values)
 
 
-def interpolating_polynomial(points, field) -> Polynomial:
-    """Polinômio de grau < len(points) que passa pelos pontos dados.
-
-    Soma y_j * L_j(x), expandindo cada base de Lagrange
-    L_j(x) = prod_{m != j} (x - x_m) / (x_j - x_m) em coeficientes.
-    """
-    xs = [x for x, _ in points]
-    result = [field.zero()] * len(points)
-    for j, (xj, yj) in enumerate(points):
-        basis = [field.one()]
-        denominator = field.one()
-        for m, xm in enumerate(xs):
-            if m == j:
-                continue
-            expanded = [field.zero()] * (len(basis) + 1)
-            for i, c in enumerate(basis):
-                expanded[i] = field.add(expanded[i], field.multiply(c, field.negate(xm)))
-                expanded[i + 1] = field.add(expanded[i + 1], c)
-            basis = expanded
-            denominator = field.multiply(denominator, field.subtract(xj, xm))
-        factor = field.divide(yj, denominator)
-        for i, c in enumerate(basis):
-            result[i] = field.add(result[i], field.multiply(c, factor))
-    return Polynomial(result, field)
+class _ConfigurationNavigation(Exception):
+    """Retorna ao módulo ou ao menu sem alterar a configuração atual."""
 
 
 class ShamirCLI:
@@ -66,7 +43,6 @@ class ShamirCLI:
         self._sampler_factory = sampler_factory
         self.field = None
         self.scheme = None
-        self.manager = None
         self.participants: list[Participant] = []
 
     # ------------------------------------------------------------------
@@ -112,7 +88,7 @@ class ShamirCLI:
         self._out("3. Reconstruir o segredo")
         self._out("4. Ver participantes e fragmentos")
         self._out("5. Exemplo guiado (segredo 8 em Z_17, 3 de 5)")
-        self._out("6. Experimentos: por que o módulo precisa ser primo")
+        self._out("6. Experimentos: como módulo e pontos afetam reconstrução e sigilo")
         self._out("0. Sair")
 
     # ------------------------------------------------------------------
@@ -122,10 +98,13 @@ class ShamirCLI:
     def _ask(self, prompt: str) -> str:
         return self._input(prompt).strip()
 
-    def _ask_int(self, prompt: str, default: int | None = None) -> int:
+    def _ask_int(self, prompt: str, default: int | None = None,
+                 navigation: bool = False) -> int:
         suffix = f" [{default}]" if default is not None else ""
         while True:
             text = self._ask(f"{prompt}{suffix}: ")
+            if navigation and text.lower() in ("voltar", "cancelar"):
+                raise _ConfigurationNavigation(text.lower())
             if not text and default is not None:
                 return default
             try:
@@ -167,27 +146,39 @@ class ShamirCLI:
                 "Reconfigurar descarta os fragmentos atuais. Continuar?"):
             return
 
+        self._out("Digite 'voltar' para escolher outro p ou 'cancelar' para retornar ao menu.")
         while True:
-            p = self._ask_int("Primo p (ordem do corpo Z_p)", self.DEFAULT_P)
             try:
-                field = FiniteField(p)
+                while True:
+                    p = self._ask_int("Primo p (ordem do corpo Z_p)", self.DEFAULT_P,
+                                      navigation=True)
+                    try:
+                        field = FiniteField(p)
+                        break
+                    except (TypeError, ValueError) as error:
+                        self._out(f"  {error}")
+                default_n = min(self.DEFAULT_N, p - 1)
+                default_k = min(self.DEFAULT_K, default_n)
+                while True:
+                    k = self._ask_int("Limiar k (fragmentos necessários)", default_k,
+                                      navigation=True)
+                    n = self._ask_int("Número de participantes n", default_n,
+                                      navigation=True)
+                    try:
+                        scheme = ShamirScheme(field, k, n, self._sampler_factory(field))
+                        break
+                    except (TypeError, ValueError) as error:
+                        self._out(f"  {error}")
+                names = self._ask_names(n)
                 break
-            except (TypeError, ValueError) as error:
-                self._out(f"  {error}")
+            except _ConfigurationNavigation as command:
+                if str(command) == "voltar":
+                    continue
+                self._out("Configuração cancelada; o estado anterior foi preservado.")
+                return
 
-        while True:
-            k = self._ask_int("Limiar k (fragmentos necessários)", self.DEFAULT_K)
-            n = self._ask_int("Número de participantes n", self.DEFAULT_N)
-            try:
-                scheme = ShamirScheme(field, k, n, self._sampler_factory(field))
-                break
-            except (TypeError, ValueError) as error:
-                self._out(f"  {error}")
-
-        names = self._ask_names(n)
         self.field = field
         self.scheme = scheme
-        self.manager = SecretManager(scheme)
         self.participants = [Participant(i, name) for i, name in enumerate(names, start=1)]
         self._out(f"Esquema configurado: Z_{p}, limiar {k} de {n}.")
         self._out("Participantes: " + ", ".join(p.name for p in self.participants))
@@ -198,6 +189,8 @@ class ShamirCLI:
                 f"Nomes dos {n} participantes, separados por vírgula "
                 "(Enter para nomes padrão): "
             )
+            if text.lower() in ("voltar", "cancelar"):
+                raise _ConfigurationNavigation(text.lower())
             if not text:
                 return [""] * n   # Participant usa "Participante i" quando vazio
             names = [name.strip() for name in text.split(",")]
@@ -253,11 +246,14 @@ class ShamirCLI:
         self._out("--- Reconstrução do segredo ---")
         self._out("1. Escolher participantes que apresentam o fragmento")
         self._out("2. Digitar fragmentos em texto (p:x:y)")
+        self._out("0. Voltar")
         choice = self._ask("Escolha: ")
         if choice == "1":
             shares = self._shares_from_participants()
         elif choice == "2":
             shares = self._shares_from_text()
+        elif choice == "0":
+            return
         else:
             self._out("Opção inválida.")
             return
@@ -305,7 +301,7 @@ class ShamirCLI:
 
     def _recover(self, shares) -> None:
         try:
-            secret = self.manager.recover_secret(shares)
+            secret = self.scheme.reconstruct(shares)
         except (TypeError, ValueError) as error:
             self._out(f"Reconstrução recusada: {error}")
             return
@@ -346,7 +342,7 @@ class ShamirCLI:
         secret = 8
 
         self._out("--- Exemplo guiado: segredo 8, limiar 3 de 5, em Z_17 ---")
-        self._out("Passo 1. O distribuidor escolhe um polinômio de grau 2 = k - 1")
+        self._out("Passo 1. O distribuidor escolhe um polinômio de grau no máximo 2 = k - 1")
         self._out("com termo constante igual ao segredo. Os outros coeficientes")
         self._out("seriam sorteados; aqui foram fixados em 5 e 2 para o exemplo.")
         polynomial, shares = scheme.split_with_polynomial(secret)
@@ -368,7 +364,9 @@ class ShamirCLI:
             others = [xm for xm in xs if xm != xj]
             num = " · ".join(f"(0 - {xm})" for xm in others)
             den = " · ".join(f"({xj} - {xm})" for xm in others)
-            self._out(f"  L({xj}) = {num} / {den} ≡ {c}")
+            self._out(f"  L({xj}) = ({num}) / ({den}) ≡ {c}")
+        self._out("  Divisão modular significa multiplicar pelo inverso: 8 / 3 ≡ 8·6 ≡ 14,")
+        self._out("  pois 3·6 ≡ 1 (mod 17). Em um anel composto, esse inverso pode não existir.")
         expression = " + ".join(f"{s.y}·{c}" for s, c in zip(selected, coefficients))
         total = sum(s.y * c for s, c in zip(selected, coefficients))
         recovered = scheme.reconstruct(selected)
@@ -391,6 +389,8 @@ class ShamirCLI:
             candidate = interpolating_polynomial(points, field)
             marker = "   <- segredo verdadeiro" if s == secret else ""
             self._out(f"  s = {s:>2}: f(x) = {candidate}{marker}")
+        self._out("Cada candidato corresponde a uma escolha de coeficientes com a mesma probabilidade.")
+        self._out("É essa igualdade das distribuições, com coeficientes uniformes, que garante sigilo.")
         self._out("Por isso k - 1 fragmentos não revelam nada sobre o segredo.")
 
     # ------------------------------------------------------------------
@@ -400,21 +400,43 @@ class ShamirCLI:
     def experiments_menu(self) -> None:
         # Os experimentos ficam na pasta experiments/, fora do pacote.
         # main.py coloca a raiz do repositório no caminho de importação.
-        from experiments import composite_leakage, missing_inverse
+        from experiments import (
+            composite_leakage, missing_inverse, performance, ring_comparison, threshold_analysis,
+        )
 
         actions = {
             "1": lambda: self._experiment_missing_inverse(missing_inverse),
             "2": lambda: self._experiment_fraction(missing_inverse),
             "3": lambda: self._experiment_ambiguity(missing_inverse),
             "4": lambda: self._experiment_leakage(composite_leakage),
+            "5": lambda: ring_comparison.print_division_free(self._out),
+            "6": lambda: ring_comparison.print_composite_success(self._out),
+            "7": lambda: ring_comparison.print_comparison(self._out),
+            "8": lambda: threshold_analysis.main(self._out),
+            "9": lambda: performance.main(self._out),
+            "10": lambda: ring_comparison.print_tampering(self._out),
+            "11": self._experiment_candidates,
         }
+        self._out("Em Z_m, dividir por a exige um inverso: um b tal que a·b ≡ 1 (mod m).")
+        self._out("Ele existe exatamente quando mdc(a, m) = 1; chamamos a de unidade.")
+        self._out("Se m é primo, todo elemento não nulo é unidade. Se é composto, isso pode falhar.")
+        self._out("Em Z_12, 3·4 ≡ 0 apesar de 3 e 4 não serem zero: são divisores de zero.")
+        self._out("Lagrange divide por produtos de diferenças entre as coordenadas dos participantes.")
+        self._out("Vamos separar: fórmula de Lagrange, unicidade do segredo e sigilo abaixo de k.")
         while True:
             self._out("")
             self._out("--- Experimentos: corpos Z_p versus anéis Z_m compostos ---")
             self._out("1. Inverso inexistente: mesma interpolação em Z_17 e Z_12")
-            self._out("2. Quantos conjuntos de pontos permitem reconstruir, por módulo")
+            self._out("2. Quantos conjuntos permitem a fórmula de Lagrange, por módulo")
             self._out("3. Ambiguidade: mesmos fragmentos, segredos diferentes (Z_12)")
             self._out("4. Vazamento: um único fragmento revela parte do segredo (Z_12)")
+            self._out("5. Lagrange falha, mas o segredo é único (Z_12)")
+            self._out("6. Anel composto que funciona com pontos adequados (Z_25, 3 de 4)")
+            self._out("7. Comparar fórmula, polinômios e segredos possíveis")
+            self._out("8. Análise exata do limiar (Z_5, 3 de 4)")
+            self._out("9. Medir desempenho em corpos primos")
+            self._out("10. Limitação: fragmentos adulterados ou misturados")
+            self._out("11. Explorar segredos compatíveis com fragmentos digitados")
             self._out("0. Voltar")
             choice = self._ask("Escolha: ")
             if choice == "0":
@@ -441,7 +463,9 @@ class ShamirCLI:
             else:
                 self._out(f"  FALHOU: o denominador {r['element']} não tem inverso "
                           f"(mdc({r['element']}, {modulus}) = {r['gcd']})")
+                self._out("  A fórmula falhou; isso sozinho não decide se o segredo é único (opção 5).")
         self._out("\nEm Z_p todo elemento não nulo tem inverso; em Z_12, só 1, 5, 7 e 11.")
+        self._out("Um anel composto pode funcionar com pontos adequados; veja a opção 6.")
 
     def _experiment_fraction(self, module) -> None:
         from ..algebra.finite_field import is_prime
@@ -450,9 +474,11 @@ class ShamirCLI:
         self._out("de Lagrange são todos invertíveis em Z_m:\n")
         self._out(f"{'m':>4} {'tipo':>9} {'funcionam':>10} {'total':>6} {'fração':>8}")
         for m in (12, 13, 15, 16, 17, 21, 25, 29, 35):
-            ok, total = module.reconstructible_fraction(m, 3)
+            ok, total = module.lagrange_applicable_fraction(m, 3)
             kind = "primo" if is_prime(m) else "composto"
             self._out(f"{m:>4} {kind:>9} {ok:>10} {total:>6} {ok / total:>8.1%}")
+        self._out("A fração mede apenas denominadores invertíveis, não todos os métodos de recuperação.")
+        self._out("Também não mede sigilo: em Z_15, x = 1, 2, 3 permite Lagrange, mas x = 3 vaza s mod 3.")
 
     def _experiment_ambiguity(self, module) -> None:
         a = module.ambiguity_example()
@@ -461,9 +487,36 @@ class ShamirCLI:
         self._out(f"f(x) mod 12:   {a['f_values']}   segredo f(0) = {a['f_secret']}")
         self._out(f"g(x) mod 12:   {a['g_values']}   segredo g(0) = {a['g_secret']}")
         self._out("Para x ímpar, 6(x + 1) é múltiplo de 12: os fragmentos coincidem,")
-        self._out("mas os segredos não. Em Z_12 os fragmentos não determinam o segredo.")
+        self._out("mas os segredos não. Nesses pontos ímpares, os fragmentos não determinam o segredo.")
 
     def _experiment_leakage(self, module) -> None:
         module.print_prime_vs_composite(self._out)
         self._out("")
         module.print_leakage_table(self._out)
+
+    def _experiment_candidates(self) -> None:
+        self._out("Enumeração didática: 2 <= m <= 25, 1 <= k <= 3, grau admitido < k.")
+        self._out("Sem fragmentos, todos os segredos são candidatos. A contagem não autentica fragmentos.")
+        m = self._ask_int("Módulo m", 12)
+        k = self._ask_int("Limiar k", 3)
+        if not 2 <= m <= 25 or not 1 <= k <= 3:
+            self._out("Use m entre 2 e 25 e k entre 1 e 3.")
+            return
+        self._out(f"Use o formato {m}:x:y; os fragmentos não precisam ser da distribuição atual.")
+        shares = self._shares_from_text()
+        if any(share.modulus != m for share in shares):
+            self._out("O módulo de cada fragmento deve ser igual ao m escolhido.")
+            return
+        try:
+            counts = compatible_secret_counts(m, k, [(s.x, s.y) for s in shares])
+        except (TypeError, ValueError) as error:
+            self._out(f"Análise recusada: {error}")
+            return
+        if not counts:
+            self._out("Nenhum polinômio de grau < k é compatível com esses fragmentos.")
+            return
+        self._out(f"Segredos possíveis: {sorted(counts)}")
+        self._out(f"Polinômios compatíveis: {sum(counts.values())}")
+        self._out("Quantidade de polinômios por segredo: " + str(dict(sorted(counts.items()))))
+        self._out("Um único segredo pode corresponder a vários polinômios.")
+        self._out("Sigilo exige distribuições iguais para todos os segredos, não só vários candidatos.")
