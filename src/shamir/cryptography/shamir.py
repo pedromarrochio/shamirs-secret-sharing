@@ -46,14 +46,24 @@ class ShamirScheme:
 
     def split(self, secret) -> list[Share]:
         """Gera n pontos não nulos de um polinômio com termo constante secreto."""
+        _, shares = self.split_with_polynomial(secret)
+        return shares
+
+    def split_with_polynomial(self, secret) -> tuple[Polynomial, list[Share]]:
+        """Como `split`, mas devolve também o polinômio sorteado.
+
+        Útil para fins didáticos: numa distribuição real, o distribuidor
+        descarta o polinômio depois de entregar os fragmentos.
+        """
         self.validate_secret(secret)
         polynomial = Polynomial.random(
             self.field, self.sampler, self.threshold - 1, secret
         )
-        return [
+        shares = [
             self.domain.create_share(x, polynomial.evaluate(x))
             for x in range(1, self.participants + 1)
         ]
+        return polynomial, shares
 
     def reconstruct(self, shares: list[Share]):
         """Reconstrói o segredo com pelo menos k fragmentos distintos."""

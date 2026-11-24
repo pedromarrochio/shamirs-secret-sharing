@@ -61,3 +61,10 @@ def test_polynomial_operations():
     for invalid in (True, 1.5, "2", None):
         with pytest.raises(TypeError):
             Polynomial.random(F17, deterministic, invalid, 8)
+
+
+def test_polynomial_text():
+    assert str(Polynomial([8, 5, 2], F17)) == "8 + 5x + 2x²"
+    assert str(Polynomial([0, 1, 0, 3], F17)) == "x + 3x³"
+    assert str(Polynomial([17, 34], F17)) == "0"
+    assert str(Polynomial([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], F17)) == "1 + x¹⁰"

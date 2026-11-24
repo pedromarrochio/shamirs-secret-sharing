@@ -39,6 +39,21 @@ class Polynomial:
                 return i
         return -1
 
+    def __str__(self) -> str:
+        """Escreve o polinômio do menor para o maior grau, ex.: 8 + 5x + 2x²."""
+
+        superscripts = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
+        terms = []
+        for i, c in enumerate(self.coefficients):
+            if c == self.field.zero():
+                continue
+            if i == 0:
+                terms.append(str(c))
+                continue
+            power = "x" if i == 1 else "x" + str(i).translate(superscripts)
+            terms.append(power if c == self.field.one() else f"{c}{power}")
+        return " + ".join(terms) if terms else "0"
+
     def evaluate(self, x):
         """Calcula f(x) no corpo pelo método de Horner."""
         x = self.field.normalize(x)

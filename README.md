@@ -16,12 +16,12 @@ para recuperá-lo. Os exemplos simulam a distribuição local a participantes.
 - Distribuição e reconstrução de segredos com `ShamirScheme` e `SecretManager`.
 - Representação de participantes e fragmentos imutáveis.
 - Serialização de fragmentos no formato textual `p:x:y`.
-- Experimento sobre falhas de reconstrução em anéis com módulo composto.
+- Interface de terminal com menu central (`main.py`): configuração, distribuição,
+  reconstrução, exemplo guiado e experimentos.
+- Experimentos sobre falhas em anéis com módulo composto: inverso inexistente, ambiguidade e vazamento de informação com menos de `k` fragmentos.
 - Testes de operações algébricas, validações, integração e propriedades de segurança.
 
-Para o esquema padrão, os parâmetros devem satisfazer `1 <= k <= n < p`, e o
-segredo deve ser um inteiro no intervalo `0 <= secret < p`. Cada fragmento é um
-ponto `(x, f(x))`, com coordenadas de distribuição `x = 1, ..., n`. O termo
+Para o esquema padrão, os parâmetros devem satisfazer `1 <= k <= n < p`, e o segredo deve ser um inteiro no intervalo `0 <= secret < p`. Cada fragmento é um ponto `(x, f(x))`, com coordenadas de distribuição `x = 1, ..., n`. O termo
 constante do polinômio é o segredo; os demais coeficientes são sorteados.
 
 ## Preparação
@@ -37,7 +37,7 @@ python3 -m pip install pytest
 
 O código de execução usa a biblioteca padrão do Python. `pytest` é necessário
 para os testes. O `pyproject.toml` configura a descoberta dos testes e o caminho
-`src`; os exemplos e experimentos usam `PYTHONPATH=src` explicitamente.
+`src` e a raiz (para os testes dos experimentos); os exemplos e experimentos usam `PYTHONPATH=src` explicitamente.
 
 ## Organização
 
@@ -48,14 +48,33 @@ para os testes. O `pyproject.toml` configura a descoberta dos testes e o caminho
 | `src/shamir/cryptography/` | Esquema de Shamir, fragmentos, regras do domínio e interpolação de Lagrange. |
 | `src/shamir/application/` | Coordenação da distribuição e recuperação por `SecretManager`, e representação de participantes. |
 | `src/shamir/serialization/` | Conversão entre fragmentos e texto. |
+| `src/shamir/interface/` | Menu de terminal, que só lê entradas e mostra resultados do núcleo. |
+| `main.py` | Ponto de entrada da aplicação. |
 | `examples/` | Demonstrações executáveis do fluxo de uso. |
 | `experiments/` | Experimentos matemáticos e espaços reservados para análises futuras. |
 | `tests/` | Verificações automatizadas com pytest. |
 
+## Aplicação principal
+
+```bash
+python3 main.py
+```
+
+Abre um menu no terminal, sem dependências além da biblioteca padrão:
+
+| Opção | O que faz |
+| --- | --- |
+| 1. Configurar esquema | Pede o primo `p`, o limiar `k`, o número de participantes `n` e, opcionalmente, os nomes. Valores inválidos são recusados com a explicação. |
+| 2. Distribuir um segredo | Gera os fragmentos e entrega um a cada participante, no formato `p:x:y`. Pode mostrar o polinômio sorteado. |
+| 3. Reconstruir o segredo | Escolhe os participantes presentes ou recebe fragmentos digitados em texto; mostra os coeficientes de Lagrange e o cálculo de `f(0)`. Recusa menos de `k` fragmentos e abscissas repetidas. |
+| 4. Ver participantes | Mostra a configuração e o fragmento de cada participante. |
+| 5. Exemplo guiado | Passo a passo com `f(x) = 8 + 5x + 2x²` em `Z_17`: geração, Lagrange e por que dois fragmentos são compatíveis com qualquer um dos 17 segredos. |
+| 6. Experimentos | Submenu com os experimentos sobre anéis `Z_m` compostos (descritos abaixo). |
+
 ## Demonstrações com saída no terminal
 
-Não há uma `main` central, interface gráfica ou servidor. Os três scripts abaixo
-possuem sua própria função `main()` e mostram os resultados no terminal.
+Os scripts abaixo também podem ser executados separadamente; cada um tem sua
+própria função `main()`.
 
 ### Distribuição e interpolação
 
@@ -94,6 +113,17 @@ caso e encontra um denominador sem inverso no segundo. Também imprime uma tabel
 com a proporção de conjuntos de três pontos cujas diferenças permitem calcular
 os coeficientes de Lagrange em diferentes módulos, e demonstra dois polinômios
 em `Z_12` com fragmentos iguais em coordenadas ímpares e segredos diferentes.
+
+### Vazamento de informação em anel composto
+
+```bash
+PYTHONPATH=src python3 experiments/composite_leakage.py
+```
+
+Mostra que, em `Z_m` composto, um único fragmento (menos que `k`) já revela
+parte do segredo. Como `f(x) - s = x(a_1 + a_2 x + ...)` é múltiplo de `x`,
+vale `f(x) ≡ s (mod mdc(x, m))`. Em `Z_12`, o fragmento em `x = 6` reduz os
+12 segredos possíveis a 2; em `Z_13`, o mesmo fragmento é compatível com todos.
 
 O anel de inteiros módulo `m`, `Z_m`, é corpo somente quando `m` é primo. Existem
 corpos finitos de ordem composta, como `GF(4)`, mas eles não são `Z_4` e não estão
@@ -141,7 +171,9 @@ A suíte verifica operações e propriedades dos corpos finitos, anéis composto
 polinômios, interpolação, entradas inválidas, serialização e integração com
 participantes. Também verifica o limiar e, por enumeração em `Z_5`, a igualdade
 das distribuições de fragmentos observáveis abaixo do limiar para diferentes
-segredos. Os testes não dependem dos módulos de números reais.
+segredos. A interface é testada simulando as entradas do usuário, e o
+experimento de vazamento é conferido contra a fórmula `m / mdc(x, m)`. Os
+testes não dependem dos módulos de números reais.
 
 ## Pendências e limites atuais
 

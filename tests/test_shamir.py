@@ -96,3 +96,12 @@ def test_secret_manager_round_trip(scheme):
     assert manager.recover_secret([participants[i].present_share() for i in (0, 2, 4)]) == 8
     with pytest.raises(ValueError):
         manager.recover_secret([participants[0].present_share()])
+
+
+def test_split_with_polynomial(scheme):
+    scheme.sampler = Mock()
+    scheme.sampler.sample.side_effect = [5, 2]
+    polynomial, shares = scheme.split_with_polynomial(8)
+    assert polynomial.coefficients == [8, 5, 2]
+    assert [share.y for share in shares] == [15, 9, 7, 9, 15]
+    assert all(polynomial.evaluate(s.x) == s.y for s in shares)
